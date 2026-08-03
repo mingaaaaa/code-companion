@@ -59,7 +59,7 @@
 
     <!-- 笔记区域 -->
     <div class="section note-section">
-      <div class="section-header" @click="noteExpanded = !noteExpanded" style="cursor: pointer;">
+      <div class="section-header" @click="toggleNote" style="cursor: pointer;">
         <h3>
           <el-icon><Notebook /></el-icon>
           学习笔记
@@ -72,30 +72,19 @@
         </div>
       </div>
 
-      <div v-show="noteExpanded" class="note-editor">
-        <div class="note-left">
-          <textarea
-            v-model="noteContent"
-            class="note-textarea"
-            placeholder="在这里写 Markdown 笔记..."
-            @input="onNoteInput"
-          ></textarea>
-        </div>
-        <div class="note-right">
-          <div class="note-preview" v-html="renderedNote"></div>
-        </div>
-      </div>
+      <div v-show="noteExpanded" ref="vditorContainer" class="vditor-wrap"></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { chapterAPI, progressAPI, fileAPI, noteAPI } from '../api'
 import { Plus, Document, Notebook, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { marked } from 'marked'
+import Vditor from 'vditor'
+import 'vditor/dist/index.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -104,17 +93,13 @@ const chapterFiles = ref([])
 const filesLoading = ref(false)
 
 // 笔记相关
-const noteContent = ref('')
+const vditorContainer = ref(null)
 const noteExpanded = ref(false)
 const noteSaving = ref(false)
 const noteSaved = ref(false)
 const noteUpdatedAt = ref(null)
+let vditor = null
 let saveTimer = null
-
-const renderedNote = computed(() => {
-  if (!noteContent.value) return '<p style="color:#909399">暂无笔记，开始记录吧...</p>'
-  return marked.parse(noteContent.value)
-})
 
 async function updateStatus() {
   if (!chapter.value) return
@@ -181,8 +166,10 @@ async function loadNote() {
   try {
     const res = await noteAPI.get(chapter.value.id)
     if (res.code === 0) {
-      noteContent.value = res.data.content || ''
       noteUpdatedAt.value = res.data.updated_at || null
+      if (vditor) {
+        vditor.setValue(res.data.content || '')
+      }
     }
   } catch (err) {
     console.error('加载笔记失败:', err)
@@ -196,10 +183,11 @@ function onNoteInput() {
 }
 
 async function saveNote() {
-  if (!chapter.value) return
+  if (!chapter.value || !vditor) return
   noteSaving.value = true
   try {
-    await noteAPI.save(chapter.value.id, noteContent.value)
+    const content = vditor.getValue()
+    await noteAPI.save(chapter.value.id, content)
     noteSaved.value = true
     noteUpdatedAt.value = new Date().toISOString()
   } catch (err) {
@@ -207,6 +195,42 @@ async function saveNote() {
   } finally {
     noteSaving.value = false
   }
+}
+
+async function toggleNote() {
+  noteExpanded.value = !noteExpanded.value
+  if (noteExpanded.value && !vditor) {
+    await nextTick()
+    initVditor()
+  }
+}
+
+function initVditor() {
+  vditor = new Vditor(vditorContainer.value, {
+    height: 400,
+    mode: 'ir',
+    placeholder: '在这里写笔记...',
+    outline: { enable: false },
+    toolbar: [
+      'emoji', 'headings', 'bold', 'italic', 'strike', '|',
+      'line', 'quote', 'list', 'ordered-list', 'check', '|',
+      'code', 'inline-code', 'table', '|',
+      'undo', 'redo', '|',
+      'edit-mode', 'fullscreen', '|',
+      {
+        name: 'save',
+        tipPosition: 's',
+        tip: '保存 (Ctrl+S)',
+        icon: '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M13.353 1.146l1.5 1.5L15 3v10.5l-.5.5h-13l-.5-.5v-13l.5-.5H3l.354.146L13.353 1.146zM2 2v11h12V3.207L11.793 2H11v3H4V2H2z"/><path d="M4 13h8v1H4z"/></svg>',
+        click: () => saveNote(),
+      },
+    ],
+    after: () => {
+      loadNote()
+    },
+    input: () => onNoteInput(),
+    cache: { enable: false },
+  })
 }
 
 onMounted(async () => {
@@ -219,10 +243,16 @@ onMounted(async () => {
         updateStatus()
       }
       loadFiles()
-      loadNote()
     }
   } catch (err) {
     console.error('获取章节失败:', err)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (vditor) {
+    vditor.destroy()
+    vditor = null
   }
 })
 </script>
@@ -331,75 +361,7 @@ onMounted(async () => {
   transition: transform 0.2s;
 }
 
-.note-editor {
-  display: flex;
-  gap: 16px;
-  height: 400px;
+.vditor-wrap {
   margin-top: 8px;
-}
-
-.note-left, .note-right {
-  flex: 1;
-  min-width: 0;
-}
-
-.note-textarea {
-  width: 100%;
-  height: 100%;
-  padding: 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.note-textarea:focus {
-  border-color: #409eff;
-}
-
-.note-preview {
-  height: 100%;
-  padding: 12px;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  overflow-y: auto;
-  background: #fafafa;
-  line-height: 1.6;
-}
-
-.note-preview :deep(h1) { font-size: 1.5rem; margin: 0.5rem 0; }
-.note-preview :deep(h2) { font-size: 1.3rem; margin: 0.5rem 0; }
-.note-preview :deep(h3) { font-size: 1.1rem; margin: 0.5rem 0; }
-.note-preview :deep(code) {
-  background: #f0f2f5;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.9em;
-}
-.note-preview :deep(pre) {
-  background: #282c34;
-  color: #abb2bf;
-  padding: 12px;
-  border-radius: 6px;
-  overflow-x: auto;
-}
-.note-preview :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: inherit;
-}
-.note-preview :deep(ul), .note-preview :deep(ol) {
-  padding-left: 1.5rem;
-}
-.note-preview :deep(blockquote) {
-  border-left: 3px solid #409eff;
-  margin: 0.5rem 0;
-  padding: 0.5rem 1rem;
-  color: #606266;
-  background: #f5f7fa;
 }
 </style>
