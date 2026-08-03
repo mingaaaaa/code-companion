@@ -44,6 +44,19 @@ a {
   color: inherit;
 }
 
+/* Element Plus 字体跟随缩放 */
+.el-button { font-size: inherit !important; }
+.el-input__wrapper { font-size: inherit !important; }
+.el-select { font-size: inherit !important; }
+.el-table { font-size: inherit !important; }
+.el-breadcrumb { font-size: inherit !important; }
+.el-dialog { font-size: inherit !important; }
+.el-message-box { font-size: inherit !important; }
+.el-empty__description p { font-size: inherit !important; }
+.el-page-header { font-size: inherit !important; }
+.el-tag { font-size: 0.85rem !important; }
+.el-radio-button__inner { font-size: inherit !important; }
+
 /* 滚动条美化 */
 ::-webkit-scrollbar {
   width: 6px;
