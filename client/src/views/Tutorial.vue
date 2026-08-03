@@ -33,11 +33,9 @@
             </div>
             <div class="chapter-info">
               <span class="chapter-name">{{ ch.title }}</span>
-              <span class="chapter-actions" @click.stop>
-                <el-button size="small" type="primary" link :href="ch.url" target="_blank">
-                  查看教程
-                </el-button>
-              </span>
+              <a :href="ch.url" target="_blank" rel="noopener noreferrer" class="tutorial-link" @click.stop>
+                查看教程
+              </a>
             </div>
           </div>
         </div>
@@ -172,5 +170,16 @@ onMounted(async () => {
 
 .chapter-item.completed .chapter-name {
   color: #909399;
+}
+
+.tutorial-link {
+  font-size: 12px;
+  color: #409eff;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tutorial-link:hover {
+  text-decoration: underline;
 }
 </style>
