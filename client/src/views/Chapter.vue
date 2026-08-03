@@ -63,6 +63,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { chapterAPI, progressAPI, fileAPI } from '../api'
+import { downloadFile as dlFile } from '../utils/download'
 import { Link, Plus, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -124,7 +125,7 @@ function openInPlayground(row) {
 }
 
 function downloadFile(row) {
-  window.open(fileAPI.download(row.id), '_blank')
+  dlFile(row.id, row.name)
 }
 
 async function deleteFile(row) {

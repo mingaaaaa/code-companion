@@ -54,8 +54,14 @@ export const fileAPI = {
   create: (data) => api.post('/files', data),
   update: (id, data) => api.put(`/files/${id}`, data),
   delete: (id) => api.delete(`/files/${id}`),
-  download: (id) => `/api/v1/files/${id}/download`,
-  downloadZip: (id) => `/api/v1/files/${id}/download-zip`,
+  download: async (id) => {
+    const res = await api.get(`/files/${id}/download`, { responseType: 'blob' })
+    return res
+  },
+  downloadZip: async (id) => {
+    const res = await api.get(`/files/${id}/download-zip`, { responseType: 'blob' })
+    return res
+  },
 }
 
 export default api

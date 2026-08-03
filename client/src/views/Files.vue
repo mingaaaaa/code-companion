@@ -97,6 +97,7 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { FolderAdd, DocumentAdd, Folder, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { fileAPI } from '../api'
+import { downloadFile as dlFile, downloadZip } from '../utils/download'
 import loader from '@monaco-editor/loader'
 
 const files = ref([])
@@ -222,7 +223,11 @@ async function saveFile() {
 }
 
 function downloadItem(row) {
-  window.open(row.type === 'folder' ? fileAPI.downloadZip(row.id) : fileAPI.download(row.id), '_blank')
+  if (row.type === 'folder') {
+    downloadZip(row.id, row.name)
+  } else {
+    dlFile(row.id, row.name)
+  }
 }
 
 function renameItem(row) {
