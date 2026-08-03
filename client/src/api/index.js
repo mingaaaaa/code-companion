@@ -64,4 +64,10 @@ export const fileAPI = {
   },
 }
 
+// Notes
+export const noteAPI = {
+  get: (chapterId) => api.get(`/notes/${chapterId}`),
+  save: (chapterId, content) => api.put(`/notes/${chapterId}`, { content }),
+}
+
 export default api

@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const chapterRoutes = require('./routes/chapters');
 const progressRoutes = require('./routes/progress');
 const fileRoutes = require('./routes/files');
+const noteRoutes = require('./routes/notes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/chapters', chapterRoutes);
 app.use('/api/v1/progress', progressRoutes);
 app.use('/api/v1/files', fileRoutes);
+app.use('/api/v1/notes', noteRoutes);
 
 // 健康检查
 app.get('/api/v1/health', (req, res) => {
