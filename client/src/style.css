@@ -55,7 +55,7 @@ a {
 .el-empty__description p { font-size: inherit !important; }
 .el-page-header { font-size: inherit !important; }
 .el-tag { font-size: 0.85rem !important; }
-.el-radio-button__inner { font-size: inherit !important; }
+.el-radio-button__inner { font-size: 0.85rem !important; padding: 6px 14px !important; }
 
 /* 滚动条美化 */
 ::-webkit-scrollbar {
