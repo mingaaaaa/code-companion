@@ -12,10 +12,9 @@
           <el-option label="进行中" value="in_progress" />
           <el-option label="已完成" value="completed" />
         </el-select>
-        <el-button type="primary" plain tag="a" :href="chapter.url" target="_blank" rel="noopener noreferrer">
-          查看教程
-          <el-icon class="el-icon--right"><Link /></el-icon>
-        </el-button>
+        <a :href="chapter.url" target="_blank" rel="noopener noreferrer" class="tutorial-link">
+          查看教程 →
+        </a>
       </div>
     </div>
 
@@ -239,6 +238,22 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.tutorial-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #409eff;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.tutorial-link:hover {
+  background: #337ecc;
 }
 
 .section {
