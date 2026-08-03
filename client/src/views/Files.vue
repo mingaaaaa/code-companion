@@ -59,7 +59,7 @@
           {{ formatDate(row.updated_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="260">
         <template #default="{ row }">
           <el-button size="small" type="primary" link @click="editFile(row)" v-if="row.type === 'file'">
             编辑
