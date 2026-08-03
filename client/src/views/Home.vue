@@ -59,15 +59,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { progressAPI } from '../api'
+
+const route = useRoute()
 
 const userStore = useUserStore()
 const stats = ref({ total: 0, completed: 0, inProgress: 0, percentage: 0 })
 
-onMounted(async () => {
-  await userStore.fetchUser()
+async function loadStats() {
   try {
     const res = await progressAPI.stats()
     if (res.code === 0) {
@@ -76,6 +78,16 @@ onMounted(async () => {
   } catch (err) {
     console.error('获取统计失败:', err)
   }
+}
+
+onMounted(async () => {
+  await userStore.fetchUser()
+  loadStats()
+})
+
+// 从其他页面返回时刷新统计
+onActivated(() => {
+  loadStats()
 })
 </script>
 

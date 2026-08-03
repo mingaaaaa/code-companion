@@ -137,8 +137,8 @@ onMounted(async () => {
   try {
     const res = await chapterAPI.get(route.params.id)
     if (res.code === 0) {
-      chapter.value = { ...res.data, status: res.data.status || 'in_progress' }
-      if (chapter.value.status === 'not_started') {
+      chapter.value = { ...res.data, status: res.data.status || 'not_started' }
+      if (!res.data.status || res.data.status === 'not_started') {
         chapter.value.status = 'in_progress'
         updateStatus()
       }

@@ -45,8 +45,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { chapterAPI } from '../api'
+
+const route = useRoute()
 
 const search = ref('')
 const loading = ref(true)
@@ -88,7 +91,7 @@ const filteredGroups = computed(() => {
   })
 })
 
-onMounted(async () => {
+async function loadChapters() {
   try {
     const res = await chapterAPI.progress('liaoxuefeng-python')
     if (res.code === 0) {
@@ -102,6 +105,18 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(loadChapters)
+
+// 从章节页返回时刷新数据
+onActivated(() => {
+  loadChapters()
+})
+
+// 监听路由变化也刷新
+watch(() => route.fullPath, (newPath) => {
+  if (newPath === '/tutorial') loadChapters()
 })
 </script>
 
