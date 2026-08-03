@@ -8,8 +8,8 @@
       </div>
     </div>
 
-    <!-- 面包屑导航 -->
-    <el-breadcrumb separator="/" class="breadcrumb">
+    <!-- 面包屑 -->
+    <el-breadcrumb separator="/" class="breadcrumb" v-if="breadcrumbs.length > 0">
       <el-breadcrumb-item :clickable="true" @click="navigateTo(null)">根目录</el-breadcrumb-item>
       <el-breadcrumb-item
         v-for="(crumb, idx) in breadcrumbs"
@@ -21,9 +21,18 @@
       </el-breadcrumb-item>
     </el-breadcrumb>
 
+    <!-- 筛选 -->
+    <div class="filter-bar">
+      <el-radio-group v-model="filterMode" size="small">
+        <el-radio-button value="all">全部</el-radio-button>
+        <el-radio-button value="linked">已关联章节</el-radio-button>
+        <el-radio-button value="unlinked">未关联章节</el-radio-button>
+      </el-radio-group>
+    </div>
+
     <!-- 文件列表 -->
-    <el-table :data="files" stripe v-loading="loading" class="file-table">
-      <el-table-column label="名称" min-width="300">
+    <el-table :data="filteredFiles" stripe v-loading="loading" class="file-table">
+      <el-table-column label="名称" min-width="250">
         <template #default="{ row }">
           <div class="file-name" @click="handleClick(row)">
             <el-icon v-if="row.type === 'folder'" color="#e6a23c"><Folder /></el-icon>
@@ -32,19 +41,25 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="100">
+      <el-table-column label="关联章节" width="200">
+        <template #default="{ row }">
+          <el-tag v-if="row.chapter_title" size="small" type="info">{{ row.chapter_title }}</el-tag>
+          <span v-else class="text-muted">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" width="80">
         <template #default="{ row }">
           <el-tag :type="row.type === 'folder' ? 'warning' : 'info'" size="small">
             {{ row.type === 'folder' ? '文件夹' : '文件' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="180">
+      <el-table-column label="更新时间" width="170">
         <template #default="{ row }">
           {{ formatDate(row.updated_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240">
+      <el-table-column label="操作" width="200">
         <template #default="{ row }">
           <el-button size="small" type="primary" link @click="editFile(row)" v-if="row.type === 'file'">
             编辑
@@ -64,7 +79,7 @@
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && files.length === 0" description="空空如也，创建一个文件吧" />
+    <el-empty v-if="!loading && filteredFiles.length === 0" description="空空如也" />
 
     <!-- 编辑器弹窗 -->
     <el-dialog v-model="editorVisible" :title="editingFile?.name" width="80%" top="5vh" destroy-on-close>
@@ -78,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { FolderAdd, DocumentAdd, Folder, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { fileAPI } from '../api'
@@ -88,8 +103,8 @@ const files = ref([])
 const loading = ref(false)
 const currentParent = ref(null)
 const breadcrumbs = ref([])
+const filterMode = ref('all')
 
-// 编辑器
 const editorVisible = ref(false)
 const editingFile = ref(null)
 const dialogEditor = ref(null)
@@ -97,104 +112,77 @@ const saving = ref(false)
 let editorInstance = null
 let monaco = null
 
+const filteredFiles = computed(() => {
+  if (filterMode.value === 'linked') return files.value.filter(f => f.chapter_title)
+  if (filterMode.value === 'unlinked') return files.value.filter(f => !f.chapter_title && f.type === 'file')
+  return files.value
+})
+
 async function loadFiles(parentId = null) {
   loading.value = true
   currentParent.value = parentId
   try {
     const res = await fileAPI.list(parentId)
-    if (res.code === 0) {
-      files.value = res.data
-    }
-    // 更新面包屑
+    if (res.code === 0) files.value = res.data
     if (parentId) {
-      await buildBreadcrumbs(parentId)
+      const treeRes = await fileAPI.tree()
+      if (treeRes.code === 0) {
+        const map = {}
+        treeRes.data.forEach(f => { map[f.id] = f })
+        const trail = []
+        let current = map[parentId]
+        while (current) {
+          trail.unshift({ id: current.id, name: current.name })
+          current = current.parent_id ? map[current.parent_id] : null
+        }
+        breadcrumbs.value = trail
+      }
     } else {
       breadcrumbs.value = []
     }
-  } catch (err) {
+  } catch {
     ElMessage.error('加载文件失败')
   } finally {
     loading.value = false
   }
 }
 
-async function buildBreadcrumbs(fileId) {
-  const res = await fileAPI.tree()
-  if (res.code !== 0) return
-
-  const map = {}
-  res.data.forEach(f => { map[f.id] = f })
-
-  const trail = []
-  let current = map[fileId]
-  while (current) {
-    trail.unshift({ id: current.id, name: current.name })
-    current = current.parent_id ? map[current.parent_id] : null
-  }
-  breadcrumbs.value = trail
-}
-
 function handleClick(row) {
-  if (row.type === 'folder') {
-    navigateTo(row.id)
-  } else {
-    editFile(row)
-  }
+  if (row.type === 'folder') navigateTo(row.id)
+  else editFile(row)
 }
 
-function navigateTo(parentId) {
-  loadFiles(parentId)
-}
+function navigateTo(parentId) { loadFiles(parentId) }
+function formatDate(d) { return new Date(d).toLocaleString('zh-CN') }
 
-function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleString('zh-CN')
-}
-
-// 创建文件夹
 function showCreateFolder() {
   ElMessageBox.prompt('文件夹名称', '新建文件夹', { inputPattern: /\S+/, inputErrorMessage: '名称不能为空' })
     .then(async ({ value }) => {
-      const res = await fileAPI.create({ name: value, type: 'folder', parent_id: currentParent.value })
-      if (res.code === 0) {
-        ElMessage.success('创建成功')
-        loadFiles(currentParent.value)
-      }
-    })
-    .catch(() => {})
+      await fileAPI.create({ name: value, type: 'folder', parent_id: currentParent.value })
+      ElMessage.success('创建成功')
+      loadFiles(currentParent.value)
+    }).catch(() => {})
 }
 
-// 创建文件
 function showCreateFile() {
-  ElMessageBox.prompt('文件名称（如 hello.py）', '新建文件', { inputPattern: /\S+/, inputErrorMessage: '名称不能为空' })
+  ElMessageBox.prompt('文件名称', '新建文件', { inputPattern: /\S+/, inputErrorMessage: '名称不能为空' })
     .then(async ({ value }) => {
       const res = await fileAPI.create({ name: value, type: 'file', content: '', parent_id: currentParent.value })
       if (res.code === 0) {
         ElMessage.success('创建成功')
         loadFiles(currentParent.value)
-        // 直接打开编辑
-        const newFile = { id: res.data.id, name: value, type: 'file', content: '' }
-        editFile(newFile)
+        editFile({ id: res.data.id, name: value, type: 'file', content: '' })
       }
-    })
-    .catch(() => {})
+    }).catch(() => {})
 }
 
-// 编辑文件
 async function editFile(row) {
   editingFile.value = row
   editorVisible.value = true
-
   await nextTick()
+  if (!monaco) monaco = await loader.init()
+  if (editorInstance) editorInstance.dispose()
 
-  if (!monaco) {
-    monaco = await loader.init()
-  }
-
-  if (editorInstance) {
-    editorInstance.dispose()
-  }
-
-  // 获取文件内容
   let content = row.content || ''
   if (!content && row.id) {
     const res = await fileAPI.get(row.id)
@@ -211,14 +199,13 @@ async function editFile(row) {
   })
 }
 
-function getLanguage(filename) {
-  if (filename.endsWith('.py')) return 'python'
-  if (filename.endsWith('.js')) return 'javascript'
-  if (filename.endsWith('.ts')) return 'typescript'
-  if (filename.endsWith('.html')) return 'html'
-  if (filename.endsWith('.css')) return 'css'
-  if (filename.endsWith('.json')) return 'json'
-  if (filename.endsWith('.md')) return 'markdown'
+function getLanguage(f) {
+  if (f.endsWith('.py')) return 'python'
+  if (f.endsWith('.js')) return 'javascript'
+  if (f.endsWith('.ts')) return 'typescript'
+  if (f.endsWith('.html')) return 'html'
+  if (f.endsWith('.css')) return 'css'
+  if (f.endsWith('.json')) return 'json'
   return 'plaintext'
 }
 
@@ -230,49 +217,31 @@ async function saveFile() {
     ElMessage.success('保存成功')
     editorVisible.value = false
     loadFiles(currentParent.value)
-  } catch {
-    ElMessage.error('保存失败')
-  } finally {
-    saving.value = false
-  }
+  } catch { ElMessage.error('保存失败') }
+  finally { saving.value = false }
 }
 
-// 下载
 function downloadItem(row) {
-  const url = row.type === 'folder'
-    ? fileAPI.downloadZip(row.id)
-    : fileAPI.download(row.id)
-  window.open(url, '_blank')
+  window.open(row.type === 'folder' ? fileAPI.downloadZip(row.id) : fileAPI.download(row.id), '_blank')
 }
 
-// 重命名
 function renameItem(row) {
   ElMessageBox.prompt('新名称', '重命名', { inputValue: row.name, inputPattern: /\S+/, inputErrorMessage: '名称不能为空' })
     .then(async ({ value }) => {
       await fileAPI.update(row.id, { name: value })
       ElMessage.success('重命名成功')
       loadFiles(currentParent.value)
-    })
-    .catch(() => {})
+    }).catch(() => {})
 }
 
-// 删除
 async function deleteItem(row) {
-  try {
-    await fileAPI.delete(row.id)
-    ElMessage.success('删除成功')
-    loadFiles(currentParent.value)
-  } catch {
-    ElMessage.error('删除失败')
-  }
+  await fileAPI.delete(row.id)
+  ElMessage.success('删除成功')
+  loadFiles(currentParent.value)
 }
 
-onBeforeUnmount(() => {
-  editorInstance?.dispose()
-})
-
-// 初始加载
-loadFiles()
+onBeforeUnmount(() => { editorInstance?.dispose() })
+onMounted(() => loadFiles())
 </script>
 
 <style scoped>
@@ -289,23 +258,15 @@ loadFiles()
   margin-bottom: 16px;
 }
 
-.files-header h2 {
-  margin: 0;
-  color: #303133;
+.files-header h2 { margin: 0; color: #303133; }
+.header-actions { display: flex; gap: 8px; }
+.breadcrumb { margin-bottom: 12px; }
+
+.filter-bar {
+  margin-bottom: 12px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.breadcrumb {
-  margin-bottom: 16px;
-}
-
-.file-table {
-  flex: 1;
-}
+.file-table { flex: 1; }
 
 .file-name {
   display: flex;
@@ -314,9 +275,9 @@ loadFiles()
   cursor: pointer;
 }
 
-.file-name:hover {
-  color: #409eff;
-}
+.file-name:hover { color: #409eff; }
+
+.text-muted { color: #c0c4cc; font-size: 12px; }
 
 .dialog-editor {
   height: 500px;

@@ -1,55 +1,46 @@
 <template>
   <div class="tutorial">
-    <h2>📚 廖雪峰 Python 教程</h2>
-
-    <el-input
-      v-model="search"
-      placeholder="搜索章节..."
-      prefix-icon="Search"
-      clearable
-      style="max-width: 400px; margin-bottom: 20px;"
-    />
+    <div class="tutorial-header">
+      <h2>📚 廖雪峰 Python 教程</h2>
+      <el-input
+        v-model="search"
+        placeholder="搜索章节..."
+        prefix-icon="Search"
+        clearable
+        style="max-width: 300px;"
+      />
+    </div>
 
     <div v-if="loading" class="loading">
       <el-skeleton :rows="10" animated />
     </div>
 
     <div v-else>
-      <!-- 按分类分组显示 -->
       <div v-for="group in filteredGroups" :key="group.name" class="chapter-group">
         <h3 class="group-title">{{ group.name }}</h3>
-        <el-table :data="group.items" stripe style="width: 100%">
-          <el-table-column label="章节" min-width="300">
-            <template #default="{ row }">
-              <div class="chapter-name">
-                <el-icon v-if="row.status === 'completed'" color="#67c23a"><CircleCheckFilled /></el-icon>
-                <el-icon v-else-if="row.status === 'in_progress'" color="#e6a23c"><Loading /></el-icon>
-                <el-icon v-else color="#c0c4cc"><CircleClose /></el-icon>
-                <a :href="row.url" target="_blank" class="chapter-link">{{ row.title }}</a>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="140">
-            <template #default="{ row }">
-              <el-select
-                v-model="row.status"
-                size="small"
-                @change="updateStatus(row)"
-              >
-                <el-option label="未开始" value="not_started" />
-                <el-option label="进行中" value="in_progress" />
-                <el-option label="已完成" value="completed" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="120">
-            <template #default="{ row }">
-              <el-button size="small" type="primary" link @click="$router.push(`/chapter/${row.id}`)">
-                进入
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="chapter-list">
+          <div
+            v-for="ch in group.items"
+            :key="ch.id"
+            class="chapter-item"
+            :class="ch.status"
+            @click="$router.push(`/chapter/${ch.id}`)"
+          >
+            <div class="chapter-status">
+              <el-icon v-if="ch.status === 'completed'" color="#67c23a" :size="18"><CircleCheckFilled /></el-icon>
+              <el-icon v-else-if="ch.status === 'in_progress'" color="#e6a23c" :size="18"><Loading /></el-icon>
+              <el-icon v-else color="#c0c4cc" :size="18"><CircleClose /></el-icon>
+            </div>
+            <div class="chapter-info">
+              <span class="chapter-name">{{ ch.title }}</span>
+              <span class="chapter-actions" @click.stop>
+                <el-button size="small" type="primary" link :href="ch.url" target="_blank">
+                  查看教程
+                </el-button>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -57,16 +48,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { chapterAPI, progressAPI } from '../api'
-import { ElMessage } from 'element-plus'
+import { chapterAPI } from '../api'
 
 const search = ref('')
 const loading = ref(true)
 const chapters = ref([])
 
-// 分类映射
 const categoryMap = {
-  '简介': 1, '历史': 2, '安装': 3,
+  '简介': 1, '安装': 2,
   '第一个程序': 10, '基本数据类型': 20,
   '函数': 30, '面向对象编程': 40, '面向对象高级': 50,
   '函数式编程': 60, '高级特性': 70, '模块': 80,
@@ -97,19 +86,9 @@ const filteredGroups = computed(() => {
   })
 
   return Object.values(groups).sort((a, b) => {
-    const aFirst = a.items[0]
-    const bFirst = b.items[0]
-    return aFirst.sort_order - bFirst.sort_order
+    return a.items[0].sort_order - b.items[0].sort_order
   })
 })
-
-async function updateStatus(chapter) {
-  try {
-    await progressAPI.update(chapter.id, chapter.status)
-  } catch {
-    ElMessage.error('更新失败')
-  }
-}
 
 onMounted(async () => {
   try {
@@ -129,8 +108,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.tutorial h2 {
-  margin-bottom: 16px;
+.tutorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.tutorial-header h2 {
+  margin: 0;
   color: #303133;
 }
 
@@ -139,23 +125,52 @@ onMounted(async () => {
 }
 
 .group-title {
-  font-size: 16px;
+  font-size: 15px;
   color: #606266;
   margin-bottom: 8px;
   padding-left: 4px;
+  font-weight: 600;
+}
+
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+}
+
+.chapter-item:hover {
+  background: #f0f2f5;
+  transform: translateX(4px);
+}
+
+.chapter-item.completed {
+  opacity: 0.7;
+}
+
+.chapter-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .chapter-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  font-size: 14px;
+  color: #303133;
 }
 
-.chapter-link {
-  color: #409eff;
-}
-
-.chapter-link:hover {
-  text-decoration: underline;
+.chapter-item.completed .chapter-name {
+  color: #909399;
 }
 </style>

@@ -7,24 +7,32 @@
           运行
         </el-button>
         <el-button @click="saveCode" :icon="FolderChecked">保存</el-button>
-        <el-select v-model="currentFileId" placeholder="选择已保存文件" clearable style="width: 200px;" @change="loadFile">
-          <el-option
-            v-for="f in savedFiles"
-            :key="f.id"
-            :label="f.name"
-            :value="f.id"
-          />
+        <el-select v-model="currentFileId" placeholder="打开已保存文件" clearable style="width: 220px;" @change="loadFile">
+          <el-option-group label="按章节">
+            <el-option
+              v-for="f in filesByChapter"
+              :key="f.id"
+              :label="`[${f.chapter_title}] ${f.name}`"
+              :value="f.id"
+            />
+          </el-option-group>
+          <el-option-group label="未关联章节" v-if="unlinkedFiles.length">
+            <el-option
+              v-for="f in unlinkedFiles"
+              :key="f.id"
+              :label="f.name"
+              :value="f.id"
+            />
+          </el-option-group>
         </el-select>
       </div>
     </div>
 
     <div class="playground-body">
-      <!-- 编辑器 -->
       <div class="editor-section">
         <div ref="editorContainer" class="editor-container"></div>
       </div>
 
-      <!-- 输出区 -->
       <div class="output-section">
         <div class="output-header">
           <span>📤 输出</span>
@@ -39,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { CaretRight, FolderChecked } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { fileAPI } from '../api'
@@ -65,8 +73,15 @@ def hello():
 hello()
 `
 
+const filesByChapter = computed(() =>
+  savedFiles.value.filter(f => f.chapter_title)
+)
+
+const unlinkedFiles = computed(() =>
+  savedFiles.value.filter(f => !f.chapter_title)
+)
+
 onMounted(async () => {
-  // 加载 Monaco Editor
   monaco = await loader.init()
   editor = monaco.editor.create(editorContainer.value, {
     value: DEFAULT_CODE,
@@ -78,8 +93,6 @@ onMounted(async () => {
     scrollBeyondLastLine: false,
     automaticLayout: true,
   })
-
-  // 加载已保存的文件
   await loadSavedFiles()
 })
 
@@ -89,9 +102,9 @@ onBeforeUnmount(() => {
 
 async function loadSavedFiles() {
   try {
-    const res = await fileAPI.tree()
+    const res = await fileAPI.list(null)
     if (res.code === 0) {
-      savedFiles.value = res.data.filter(f => f.type === 'file' && f.name.endsWith('.py'))
+      savedFiles.value = res.data.filter(f => f.type === 'file')
     }
   } catch {}
 }
@@ -139,7 +152,6 @@ async function runCode() {
   output.value = '正在加载 Python 环境...'
 
   try {
-    // 懒加载 Pyodide
     if (!pyodide) {
       const pyodideModule = await import('https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.mjs')
       pyodide = await pyodideModule.loadPyodide({
@@ -149,7 +161,6 @@ async function runCode() {
 
     output.value = '执行中...\n'
 
-    // 捕获 stdout 和 stderr
     pyodide.runPython(`
 import sys
 from io import StringIO
@@ -168,7 +179,6 @@ sys.stderr = _stderr
     const stdout = pyodide.runPython('_stdout.getvalue()')
     const stderr = pyodide.runPython('_stderr.getvalue()')
 
-    // 恢复 stdout
     pyodide.runPython('sys.stdout = sys.__stdout__; sys.stderr = sys.__stderr__')
 
     let result = ''
