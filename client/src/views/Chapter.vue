@@ -20,7 +20,7 @@
 
     <el-divider />
 
-    <!-- 关联练习文件 -->
+    <!-- 练习文件 -->
     <div class="section">
       <div class="section-header">
         <h3>📝 练习文件</h3>
@@ -28,9 +28,9 @@
       </div>
 
       <el-table :data="chapterFiles" stripe v-loading="filesLoading" v-if="chapterFiles.length > 0">
-        <el-table-column label="文件名" min-width="250">
+        <el-table-column label="文件名" min-width="300">
           <template #default="{ row }">
-            <div class="file-name" @click="editFile(row)">
+            <div class="file-name" @click="openInPlayground(row)">
               <el-icon color="#409eff"><Document /></el-icon>
               <span>{{ row.name }}</span>
             </div>
@@ -43,7 +43,7 @@
         </el-table-column>
         <el-table-column label="操作" width="180">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="editFile(row)">编辑</el-button>
+            <el-button size="small" type="primary" link @click="openInPlayground(row)">编辑</el-button>
             <el-button size="small" type="success" link @click="downloadFile(row)">下载</el-button>
             <el-popconfirm title="确定删除？" @confirm="deleteFile(row)">
               <template #reference>
@@ -56,50 +56,31 @@
 
       <el-empty v-else description="还没有练习文件，创建一个开始练习吧" :image-size="80" />
     </div>
-
-    <!-- 编辑器弹窗 -->
-    <el-dialog v-model="editorVisible" :title="editingFile?.name" width="80%" top="5vh" destroy-on-close>
-      <div ref="dialogEditor" class="dialog-editor"></div>
-      <template #footer>
-        <el-button @click="editorVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveFile" :loading="saving">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { chapterAPI, progressAPI, fileAPI } from '../api'
 import { Link, Plus, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import loader from '@monaco-editor/loader'
 
 const route = useRoute()
+const router = useRouter()
 const chapter = ref(null)
 const chapterFiles = ref([])
 const filesLoading = ref(false)
-
-// 编辑器
-const editorVisible = ref(false)
-const editingFile = ref(null)
-const dialogEditor = ref(null)
-const saving = ref(false)
-let editorInstance = null
-let monaco = null
 
 async function updateStatus() {
   if (!chapter.value) return
   await progressAPI.update(chapter.value.id, chapter.value.status)
 }
 
-
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
-// 加载关联文件
 async function loadFiles() {
   if (!chapter.value) return
   filesLoading.value = true
@@ -115,7 +96,7 @@ async function loadFiles() {
   }
 }
 
-// 创建文件
+// 新建文件 → 跳转练习场
 async function createFile() {
   const { value } = await ElMessageBox.prompt('文件名称', '新建练习文件', {
     inputValue: `${chapter.value.title}.py`,
@@ -133,62 +114,13 @@ async function createFile() {
   })
   if (res.code === 0) {
     ElMessage.success('创建成功')
-    await loadFiles()
-    // 直接打开编辑
-    const newFile = { id: res.data.id, name: value, type: 'file', content: `# ${chapter.value.title}\n# 在这里编写练习代码\n\n` }
-    editFile(newFile)
+    router.push({ path: '/playground', query: { fileId: res.data.id, chapterId: chapter.value.id } })
   }
 }
 
-// 编辑文件
-async function editFile(row) {
-  editingFile.value = row
-  editorVisible.value = true
-
-  await nextTick()
-
-  if (!monaco) monaco = await loader.init()
-  if (editorInstance) editorInstance.dispose()
-
-  let content = row.content || ''
-  if (!content && row.id) {
-    const res = await fileAPI.get(row.id)
-    if (res.code === 0) content = res.data.content || ''
-  }
-
-  editorInstance = monaco.editor.create(dialogEditor.value, {
-    value: content,
-    language: getLanguage(row.name),
-    theme: 'vs-dark',
-    minimap: { enabled: false },
-    fontSize: 14,
-    automaticLayout: true,
-  })
-}
-
-function getLanguage(filename) {
-  if (filename.endsWith('.py')) return 'python'
-  if (filename.endsWith('.js')) return 'javascript'
-  if (filename.endsWith('.ts')) return 'typescript'
-  if (filename.endsWith('.html')) return 'html'
-  if (filename.endsWith('.css')) return 'css'
-  if (filename.endsWith('.json')) return 'json'
-  return 'plaintext'
-}
-
-async function saveFile() {
-  if (!editorInstance || !editingFile.value) return
-  saving.value = true
-  try {
-    await fileAPI.update(editingFile.value.id, { content: editorInstance.getValue() })
-    ElMessage.success('保存成功')
-    editorVisible.value = false
-    loadFiles()
-  } catch {
-    ElMessage.error('保存失败')
-  } finally {
-    saving.value = false
-  }
+// 打开已有文件 → 跳转练习场
+function openInPlayground(row) {
+  router.push({ path: '/playground', query: { fileId: row.id, chapterId: chapter.value.id } })
 }
 
 function downloadFile(row) {
@@ -200,10 +132,6 @@ async function deleteFile(row) {
   ElMessage.success('删除成功')
   loadFiles()
 }
-
-onBeforeUnmount(() => {
-  editorInstance?.dispose()
-})
 
 onMounted(async () => {
   try {
@@ -281,11 +209,5 @@ onMounted(async () => {
 
 .file-name:hover {
   color: #409eff;
-}
-
-.dialog-editor {
-  height: 500px;
-  border-radius: 8px;
-  overflow: hidden;
 }
 </style>

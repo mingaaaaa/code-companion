@@ -1,45 +1,41 @@
 <template>
   <div class="playground">
+    <!-- 顶部栏 -->
     <div class="playground-header">
-      <h2>💻 代码练习场</h2>
+      <div class="header-left">
+        <el-button v-if="chapterId" text @click="$router.push(`/chapter/${chapterId}`)">
+          <el-icon><ArrowLeft /></el-icon>
+          {{ chapterTitle || '返回章节' }}
+        </el-button>
+        <el-divider v-if="chapterId" direction="vertical" />
+        <span class="file-name" v-if="currentFileName">{{ currentFileName }}</span>
+        <el-tag v-if="isModified" size="small" type="warning">未保存</el-tag>
+      </div>
       <div class="header-actions">
         <el-button @click="runCode" :loading="running" type="success" :icon="CaretRight">
           运行
         </el-button>
-        <el-button @click="saveCode" :icon="FolderChecked">保存</el-button>
-        <el-select v-model="currentFileId" placeholder="打开已保存文件" clearable style="width: 220px;" @change="loadFile">
-          <el-option-group label="按章节">
-            <el-option
-              v-for="f in filesByChapter"
-              :key="f.id"
-              :label="`[${f.chapter_title}] ${f.name}`"
-              :value="f.id"
-            />
-          </el-option-group>
-          <el-option-group label="未关联章节" v-if="unlinkedFiles.length">
-            <el-option
-              v-for="f in unlinkedFiles"
-              :key="f.id"
-              :label="f.name"
-              :value="f.id"
-            />
-          </el-option-group>
-        </el-select>
+        <el-button @click="saveCode" :icon="FolderChecked" :disabled="!currentFileId">
+          保存
+        </el-button>
+        <el-button v-if="chapterId" type="primary" size="small" @click="createNewFile">
+          新建文件
+        </el-button>
       </div>
     </div>
 
+    <!-- 编辑器 + 输出 -->
     <div class="playground-body">
       <div class="editor-section">
         <div ref="editorContainer" class="editor-container"></div>
       </div>
-
       <div class="output-section">
         <div class="output-header">
           <span>📤 输出</span>
           <el-button size="small" text @click="output = ''">清空</el-button>
         </div>
         <div class="output-content" :class="{ error: hasError }">
-          {{ output || '点击"运行"执行代码...' }}
+          {{ output || '点击「运行」执行代码...' }}
         </div>
       </div>
     </div>
@@ -47,65 +43,48 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { CaretRight, FolderChecked } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { fileAPI } from '../api'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { CaretRight, FolderChecked, ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { fileAPI, chapterAPI } from '../api'
 import loader from '@monaco-editor/loader'
+
+const route = useRoute()
+const router = useRouter()
 
 const editorContainer = ref(null)
 const output = ref('')
 const hasError = ref(false)
 const running = ref(false)
+const isModified = ref(false)
+
 const currentFileId = ref(null)
-const savedFiles = ref([])
+const currentFileName = ref('')
+const chapterId = ref(null)
+const chapterTitle = ref('')
 
 let editor = null
 let monaco = null
 let pyodide = null
 
-const DEFAULT_CODE = `# 欢迎来到 Code Companion 练习场！
-# 在这里编写 Python 代码并运行
+const DEFAULT_CODE = `# 在这里编写 Python 代码\n\nprint("Hello, Code Companion! 🐍")\n`
 
-def hello():
-    print("Hello, Code Companion! 🐍")
+// 监听路由变化（从章节页跳转过来）
+watch(() => route.query, async (q) => {
+  if (q.fileId) {
+    await loadFile(q.fileId)
+  }
+  if (q.chapterId) {
+    chapterId.value = q.chapterId
+    await loadChapter(q.chapterId)
+  }
+}, { immediate: true })
 
-hello()
-`
-
-const filesByChapter = computed(() =>
-  savedFiles.value.filter(f => f.chapter_title)
-)
-
-const unlinkedFiles = computed(() =>
-  savedFiles.value.filter(f => !f.chapter_title)
-)
-
-onMounted(async () => {
-  monaco = await loader.init()
-  editor = monaco.editor.create(editorContainer.value, {
-    value: DEFAULT_CODE,
-    language: 'python',
-    theme: 'vs-dark',
-    minimap: { enabled: false },
-    fontSize: 14,
-    lineNumbers: 'on',
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-  })
-  await loadSavedFiles()
-})
-
-onBeforeUnmount(() => {
-  editor?.dispose()
-})
-
-async function loadSavedFiles() {
+async function loadChapter(id) {
   try {
-    const res = await fileAPI.list(null)
-    if (res.code === 0) {
-      savedFiles.value = res.data.filter(f => f.type === 'file')
-    }
+    const res = await chapterAPI.get(id)
+    if (res.code === 0) chapterTitle.value = res.data.title
   } catch {}
 }
 
@@ -114,26 +93,50 @@ async function loadFile(fileId) {
   try {
     const res = await fileAPI.get(fileId)
     if (res.code === 0) {
-      editor.setValue(res.data.content || '')
+      currentFileId.value = res.data.id
+      currentFileName.value = res.data.name
+      chapterId.value = res.data.chapter_id
+      if (editor) {
+        editor.setValue(res.data.content || '')
+        isModified.value = false
+      }
+      if (res.data.chapter_id) loadChapter(res.data.chapter_id)
     }
   } catch {
     ElMessage.error('加载文件失败')
   }
 }
 
-async function saveCode() {
-  const code = editor.getValue()
-  const name = prompt('文件名（如 hello.py）:', 'untitled.py')
-  if (!name) return
+async function createNewFile() {
+  const { value } = await ElMessageBox.prompt('文件名称', '新建练习文件', {
+    inputValue: 'untitled.py',
+    inputPattern: /\S+/,
+    inputErrorMessage: '名称不能为空',
+  }).catch(() => ({}))
+  if (!value) return
 
+  const res = await fileAPI.create({
+    name: value,
+    type: 'file',
+    content: `# ${chapterTitle.value}\n\n`,
+    chapter_id: chapterId.value,
+  })
+  if (res.code === 0) {
+    currentFileId.value = res.data.id
+    currentFileName.value = value
+    editor.setValue(`# ${chapterTitle.value}\n\n`)
+    isModified.value = false
+    ElMessage.success('创建成功')
+    // 更新 URL（不刷新页面）
+    router.replace({ query: { fileId: res.data.id, chapterId: chapterId.value } })
+  }
+}
+
+async function saveCode() {
+  if (!currentFileId.value || !editor) return
   try {
-    if (currentFileId.value) {
-      await fileAPI.update(currentFileId.value, { name, content: code })
-    } else {
-      const res = await fileAPI.create({ name, type: 'file', content: code })
-      if (res.code === 0) currentFileId.value = res.data.id
-    }
-    await loadSavedFiles()
+    await fileAPI.update(currentFileId.value, { content: editor.getValue() })
+    isModified.value = false
     ElMessage.success('保存成功')
   } catch {
     ElMessage.error('保存失败')
@@ -141,6 +144,7 @@ async function saveCode() {
 }
 
 async function runCode() {
+  if (!editor) return
   const code = editor.getValue()
   if (!code.trim()) {
     output.value = '请先编写代码'
@@ -178,7 +182,6 @@ sys.stderr = _stderr
 
     const stdout = pyodide.runPython('_stdout.getvalue()')
     const stderr = pyodide.runPython('_stderr.getvalue()')
-
     pyodide.runPython('sys.stdout = sys.__stdout__; sys.stderr = sys.__stderr__')
 
     let result = ''
@@ -187,7 +190,6 @@ sys.stderr = _stderr
       result += (result ? '\n' : '') + stderr
       hasError.value = true
     }
-
     output.value = result || '(无输出)'
   } catch (err) {
     hasError.value = true
@@ -196,6 +198,39 @@ sys.stderr = _stderr
     running.value = false
   }
 }
+
+// Ctrl+S 保存
+function handleKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault()
+    saveCode()
+  }
+}
+
+onMounted(async () => {
+  monaco = await loader.init()
+  editor = monaco.editor.create(editorContainer.value, {
+    value: DEFAULT_CODE,
+    language: 'python',
+    theme: 'vs-dark',
+    minimap: { enabled: false },
+    fontSize: 14,
+    lineNumbers: 'on',
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+  })
+
+  editor.onDidChangeModelContent(() => {
+    isModified.value = true
+  })
+
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  editor?.dispose()
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
@@ -209,12 +244,21 @@ sys.stderr = _stderr
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
 }
 
-.playground-header h2 {
-  margin: 0;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-name {
+  font-weight: 600;
   color: #303133;
+  font-size: 15px;
 }
 
 .header-actions {
