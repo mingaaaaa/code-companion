@@ -12,10 +12,12 @@
           <el-option label="进行中" value="in_progress" />
           <el-option label="已完成" value="completed" />
         </el-select>
-        <el-button type="primary" @click="openOriginal" plain>
-          查看教程
-          <el-icon class="el-icon--right"><Link /></el-icon>
-        </el-button>
+        <a :href="chapter.url" target="_blank" rel="noopener noreferrer">
+          <el-button type="primary" plain>
+            查看教程
+            <el-icon class="el-icon--right"><Link /></el-icon>
+          </el-button>
+        </a>
       </div>
     </div>
 
@@ -95,9 +97,6 @@ async function updateStatus() {
   await progressAPI.update(chapter.value.id, chapter.value.status)
 }
 
-function openOriginal() {
-  window.open(chapter.value.url, '_blank')
-}
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString('zh-CN')
