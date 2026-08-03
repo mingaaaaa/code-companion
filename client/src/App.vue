@@ -31,7 +31,8 @@
               <span>文件区</span>
             </el-menu-item>
           </el-menu>
-          <div class="aside-footer">
+          <FontSizeSwitcher />
+        <div class="aside-footer">
             <el-dropdown @command="handleCommand">
               <span class="user-info">
                 <el-icon><User /></el-icon>
@@ -57,6 +58,7 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from './stores/user'
+import FontSizeSwitcher from './components/FontSizeSwitcher.vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
 const route = useRoute()
@@ -89,7 +91,7 @@ function handleCommand(cmd) {
   gap: 8px;
   padding: 16px 20px;
   color: #fff;
-  font-size: 16px;
+  font-size: 1.1rem;
   font-weight: 600;
   border-bottom: 1px solid #2d2e3e;
 }
@@ -110,7 +112,7 @@ function handleCommand(cmd) {
   gap: 6px;
   color: #a0a3b1;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9rem;
 }
 
 .app-main {

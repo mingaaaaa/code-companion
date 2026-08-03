@@ -1,3 +1,32 @@
+/* 默认字体大小 */
+:root {
+  --font-scale: 1;
+}
+
+/* 自动适配高分屏 */
+@media (min-resolution: 144dpi) {
+  :root { --font-scale: 1.1; }
+}
+@media (min-resolution: 192dpi) {
+  :root { --font-scale: 1.2; }
+}
+@media (min-resolution: 240dpi) {
+  :root { --font-scale: 1.25; }
+}
+
+/* 2K 及以上屏幕 */
+@media (min-width: 2560px) {
+  :root { --font-scale: 1.25; }
+}
+@media (min-width: 3200px) {
+  :root { --font-scale: 1.4; }
+}
+
+/* 读取用户手动设置的缩放 */
+html {
+  font-size: calc(14px * var(--font-scale));
+}
+
 * {
   margin: 0;
   padding: 0;

@@ -285,7 +285,7 @@ onBeforeUnmount(() => {
 .file-name {
   font-weight: 600;
   color: #303133;
-  font-size: 15px;
+  font-size: 1.05rem;
 }
 
 .header-actions {
@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   background: #252526;
   color: #ccc;
-  font-size: 13px;
+  font-size: 0.9rem;
 }
 
 .output-content {
@@ -336,7 +336,7 @@ onBeforeUnmount(() => {
   padding: 12px 16px;
   color: #d4d4d4;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 13px;
+  font-size: 0.9rem;
   white-space: pre-wrap;
   overflow-y: auto;
   line-height: 1.5;

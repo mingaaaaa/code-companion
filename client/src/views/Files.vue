@@ -282,7 +282,7 @@ onMounted(() => loadFiles())
 
 .file-name:hover { color: #409eff; }
 
-.text-muted { color: #c0c4cc; font-size: 12px; }
+.text-muted { color: #c0c4cc; font-size: 0.85rem; }
 
 .dialog-editor {
   height: 500px;

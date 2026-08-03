@@ -123,13 +123,13 @@ onActivated(() => {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 2rem;
   font-weight: 700;
   color: #303133;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 0.9rem;
   color: #909399;
 }
 
@@ -139,7 +139,7 @@ onActivated(() => {
 
 .progress-detail {
   margin-top: 12px;
-  font-size: 13px;
+  font-size: 0.9rem;
   color: #909399;
 }
 </style>

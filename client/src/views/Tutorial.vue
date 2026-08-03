@@ -180,7 +180,7 @@ watch(() => route.fullPath, (p) => { if (p === '/tutorial') loadChapters() })
 .chapter-group { margin-bottom: 24px; }
 
 .group-title {
-  font-size: 15px;
+  font-size: 1.05rem;
   color: #606266;
   margin-bottom: 8px;
   padding-left: 4px;
@@ -215,11 +215,11 @@ watch(() => route.fullPath, (p) => { if (p === '/tutorial') loadChapters() })
   justify-content: space-between;
 }
 
-.chapter-name { font-size: 14px; color: #303133; }
+.chapter-name { font-size: 1rem; color: #303133; }
 .chapter-item.completed .chapter-name { color: #909399; }
 
 .tutorial-link {
-  font-size: 12px;
+  font-size: 0.85rem;
   color: #409eff;
   text-decoration: none;
   white-space: nowrap;
@@ -239,7 +239,7 @@ watch(() => route.fullPath, (p) => { if (p === '/tutorial') loadChapters() })
 
 .menu-title {
   padding: 6px 16px;
-  font-size: 12px;
+  font-size: 0.85rem;
   color: #909399;
   border-bottom: 1px solid #ebeef5;
   margin-bottom: 4px;
@@ -251,7 +251,7 @@ watch(() => route.fullPath, (p) => { if (p === '/tutorial') loadChapters() })
   gap: 8px;
   padding: 8px 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9rem;
   color: #303133;
   transition: background 0.15s;
 }

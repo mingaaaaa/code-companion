@@ -159,7 +159,7 @@ onMounted(async () => {
 }
 
 .chapter-title {
-  font-size: 18px;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
@@ -176,7 +176,7 @@ onMounted(async () => {
   background: #409eff;
   color: #fff;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 1rem;
   text-decoration: none;
   transition: background 0.2s;
 }
