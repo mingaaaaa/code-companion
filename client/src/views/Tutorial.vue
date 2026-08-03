@@ -1,5 +1,5 @@
 <template>
-  <div class="tutorial">
+  <div class="tutorial" @click="closeMenu" @contextmenu.prevent="closeMenu">
     <div class="tutorial-header">
       <h2>📚 廖雪峰 Python 教程</h2>
       <el-input
@@ -25,6 +25,7 @@
             class="chapter-item"
             :class="ch.status"
             @click="$router.push(`/chapter/${ch.id}`)"
+            @contextmenu.prevent.stop="openMenu($event, ch)"
           >
             <div class="chapter-status">
               <el-icon v-if="ch.status === 'completed'" color="#67c23a" :size="18"><CircleCheckFilled /></el-icon>
@@ -41,19 +42,56 @@
         </div>
       </div>
     </div>
+
+    <!-- 右键菜单 -->
+    <div
+      v-show="menuVisible"
+      class="context-menu"
+      :style="{ left: menuX + 'px', top: menuY + 'px' }"
+      @click.stop
+    >
+      <div class="menu-title">设置状态</div>
+      <div
+        v-for="item in statusOptions"
+        :key="item.value"
+        class="menu-item"
+        :class="{ active: menuChapter?.status === item.value }"
+        @click="setStatus(item.value)"
+      >
+        <el-icon :color="item.color" :size="16">
+          <component :is="item.icon" />
+        </el-icon>
+        <span>{{ item.label }}</span>
+        <el-icon v-if="menuChapter?.status === item.value" class="check-icon"><Check /></el-icon>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { chapterAPI } from '../api'
+import { chapterAPI, progressAPI } from '../api'
+import { CircleCheckFilled, Loading, CircleClose, Check } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 
 const search = ref('')
 const loading = ref(true)
 const chapters = ref([])
+
+// 右键菜单
+const menuVisible = ref(false)
+const menuX = ref(0)
+const menuY = ref(0)
+const menuChapter = ref(null)
+
+const statusOptions = [
+  { value: 'not_started', label: '未开始', color: '#c0c4cc', icon: CircleClose },
+  { value: 'in_progress', label: '进行中', color: '#e6a23c', icon: Loading },
+  { value: 'completed', label: '已完成', color: '#67c23a', icon: CircleCheckFilled },
+]
 
 const categoryMap = {
   '简介': 1, '安装': 2,
@@ -86,10 +124,27 @@ const filteredGroups = computed(() => {
     groups[cat].items.push(ch)
   })
 
-  return Object.values(groups).sort((a, b) => {
-    return a.items[0].sort_order - b.items[0].sort_order
-  })
+  return Object.values(groups).sort((a, b) => a.items[0].sort_order - b.items[0].sort_order)
 })
+
+function openMenu(e, chapter) {
+  menuVisible.value = true
+  menuX.value = e.clientX
+  menuY.value = e.clientY
+  menuChapter.value = chapter
+}
+
+function closeMenu() {
+  menuVisible.value = false
+  menuChapter.value = null
+}
+
+async function setStatus(status) {
+  if (!menuChapter.value) return
+  menuChapter.value.status = status
+  await progressAPI.update(menuChapter.value.id, status)
+  closeMenu()
+}
 
 async function loadChapters() {
   try {
@@ -108,16 +163,8 @@ async function loadChapters() {
 }
 
 onMounted(loadChapters)
-
-// 从章节页返回时刷新数据
-onActivated(() => {
-  loadChapters()
-})
-
-// 监听路由变化也刷新
-watch(() => route.fullPath, (newPath) => {
-  if (newPath === '/tutorial') loadChapters()
-})
+onActivated(() => { loadChapters() })
+watch(() => route.fullPath, (p) => { if (p === '/tutorial') loadChapters() })
 </script>
 
 <style scoped>
@@ -128,14 +175,9 @@ watch(() => route.fullPath, (newPath) => {
   margin-bottom: 20px;
 }
 
-.tutorial-header h2 {
-  margin: 0;
-  color: #303133;
-}
+.tutorial-header h2 { margin: 0; color: #303133; }
 
-.chapter-group {
-  margin-bottom: 24px;
-}
+.chapter-group { margin-bottom: 24px; }
 
 .group-title {
   font-size: 15px;
@@ -160,16 +202,11 @@ watch(() => route.fullPath, (newPath) => {
   cursor: pointer;
   transition: all 0.2s;
   background: #fff;
+  user-select: none;
 }
 
-.chapter-item:hover {
-  background: #f0f2f5;
-  transform: translateX(4px);
-}
-
-.chapter-item.completed {
-  opacity: 0.7;
-}
+.chapter-item:hover { background: #f0f2f5; transform: translateX(4px); }
+.chapter-item.completed { opacity: 0.7; }
 
 .chapter-info {
   flex: 1;
@@ -178,14 +215,8 @@ watch(() => route.fullPath, (newPath) => {
   justify-content: space-between;
 }
 
-.chapter-name {
-  font-size: 14px;
-  color: #303133;
-}
-
-.chapter-item.completed .chapter-name {
-  color: #909399;
-}
+.chapter-name { font-size: 14px; color: #303133; }
+.chapter-item.completed .chapter-name { color: #909399; }
 
 .tutorial-link {
   font-size: 12px;
@@ -193,8 +224,43 @@ watch(() => route.fullPath, (newPath) => {
   text-decoration: none;
   white-space: nowrap;
 }
+.tutorial-link:hover { text-decoration: underline; }
 
-.tutorial-link:hover {
-  text-decoration: underline;
+/* 右键菜单 */
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 6px 0;
+  min-width: 160px;
+}
+
+.menu-title {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #909399;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #303133;
+  transition: background 0.15s;
+}
+
+.menu-item:hover { background: #f5f7fa; }
+.menu-item.active { color: #409eff; font-weight: 500; }
+
+.check-icon {
+  margin-left: auto;
+  color: #409eff;
 }
 </style>
