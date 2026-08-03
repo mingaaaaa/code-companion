@@ -192,6 +192,8 @@ async function runCode() {
 
     output.value = '执行中...\n'
 
+    // 注入 input() 支持（用 prompt 弹窗替代 stdin）
+    pyodide.globals.set('__browser_input__', (msg) => prompt(msg) || '')
     pyodide.runPython(`
 import sys
 from io import StringIO
@@ -199,6 +201,12 @@ _stdout = StringIO()
 _stderr = StringIO()
 sys.stdout = _stdout
 sys.stderr = _stderr
+
+def _browser_input(prompt=''):
+    return __browser_input__(str(prompt))
+
+import builtins
+builtins.input = _browser_input
 `)
 
     try {
