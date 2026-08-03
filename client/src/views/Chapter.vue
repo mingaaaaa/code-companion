@@ -12,12 +12,10 @@
           <el-option label="进行中" value="in_progress" />
           <el-option label="已完成" value="completed" />
         </el-select>
-        <a :href="chapter.url" target="_blank" rel="noopener noreferrer">
-          <el-button type="primary" plain>
-            查看教程
-            <el-icon class="el-icon--right"><Link /></el-icon>
-          </el-button>
-        </a>
+        <el-button type="primary" plain tag="a" :href="chapter.url" target="_blank" rel="noopener noreferrer">
+          查看教程
+          <el-icon class="el-icon--right"><Link /></el-icon>
+        </el-button>
       </div>
     </div>
 
