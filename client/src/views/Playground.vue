@@ -15,7 +15,7 @@
         <el-button @click="runCode" :loading="running" type="success" :icon="CaretRight">
           运行
         </el-button>
-        <el-button @click="saveCode" :icon="FolderChecked" :disabled="!currentFileId">
+        <el-button @click="saveCode" :icon="FolderChecked">
           保存
         </el-button>
         <el-button v-if="chapterId" type="primary" size="small" @click="createNewFile">
@@ -133,7 +133,34 @@ async function createNewFile() {
 }
 
 async function saveCode() {
-  if (!currentFileId.value || !editor) return
+  if (!editor) return
+
+  // 没有文件时先创建
+  if (!currentFileId.value) {
+    const { value: name } = await ElMessageBox.prompt('文件名称', '保存文件', {
+      inputValue: 'untitled.py',
+      inputPattern: /\S+/,
+      inputErrorMessage: '名称不能为空',
+    }).catch(() => ({}))
+    if (!name) return
+
+    const res = await fileAPI.create({
+      name,
+      type: 'file',
+      content: editor.getValue(),
+      chapter_id: chapterId.value || null,
+    })
+    if (res.code === 0) {
+      currentFileId.value = res.data.id
+      currentFileName.value = name
+      isModified.value = false
+      ElMessage.success('保存成功')
+      router.replace({ query: { fileId: res.data.id, chapterId: chapterId.value } })
+    }
+    return
+  }
+
+  // 有文件时直接保存
   try {
     await fileAPI.update(currentFileId.value, { content: editor.getValue() })
     isModified.value = false
