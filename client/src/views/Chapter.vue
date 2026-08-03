@@ -208,7 +208,7 @@ async function toggleNote() {
 function initVditor() {
   vditor = new Vditor(vditorContainer.value, {
     height: 400,
-    mode: 'ir',
+    mode: 'sv',
     placeholder: '在这里写笔记...',
     outline: { enable: false },
     toolbar: [
