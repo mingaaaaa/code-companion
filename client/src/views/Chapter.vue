@@ -251,7 +251,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (vditor) {
-    vditor.destroy()
+    try { vditor.destroy() } catch {}
     vditor = null
   }
 })
